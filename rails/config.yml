@@ -1,0 +1,30 @@
+# rails/config.yml — NeMo Guardrails main configuration (Chapter 8)
+
+models:
+  - type: main
+    engine: amazon_bedrock
+    model: us.anthropic.claude-haiku-4-5-20251001-v1:0
+    parameters:
+      region_name: us-east-1
+
+rails:
+  input:
+    flows:
+      - self check input
+      - check jailbreak
+  output:
+    flows:
+      - self check output
+      - redact pii
+  retrieval:
+    flows:
+      - check kb sources
+  dialog:
+    single_call:
+      enabled: false   # multi-turn: more accurate rails, slightly higher cost
+
+prompts:
+  - task: self_check_input
+    content_path: ./self_check.yml#input
+  - task: self_check_output
+    content_path: ./self_check.yml#output
