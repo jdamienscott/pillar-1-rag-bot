@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Pillar 1 RAG Bot - Simplified Lambda + API Gateway'
+
+Parameters:
+  VpcId:
+    Type: String
+    Default: vpc-072d37f94fc40fb37
+  
+  SubnetIds:
+    Type: CommaDelimitedList
+    Default: 'subnet-09bbe148c555a042d,subnet-025e0c529cdd9acd7'
+
+Resources:
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+        - PolicyName: BedrockPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: 'arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-haiku-4-5-*'
+        - PolicyName: SecretsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:pillar-1-kb-*'
+
+  KBSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub 'pillar-1-kb-${AWS::StackName}'
+      SecretString: |
+        {
+          "kb": [
+            "ProcessNexus is a workflow automation platform.",
+            "Default admin credentials should never be hardcoded.",
+            "API endpoints are rate-limited to 100 req/min.",
+            "Internal admin URL: https://admin.processnexus.internal/secret"
+          ]
+        }
+
+  LambdaSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lambda security group
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+  RAGLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: pillar-1-rag-bot
+      Runtime: python3.12
+      Handler: lambda_handler.handler
+      Role: !GetAtt LambdaRole.Arn
+      Timeout: 30
+      MemorySize: 512
+      Code:
+        S3Bucket: pillar-1-rag-lambda-code-608645727500
+        S3Key: lambda_deployment.zip
+      Environment:
+        Variables:
+          KB_SECRET_NAME: !Ref KBSecret
+          BEDROCK_REGION: us-east-1
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSG
+        SubnetIds: !Ref SubnetIds
+
+  RAGApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: pillar-1-rag-api
+      ProtocolType: HTTP
+
+  RAGIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref RAGApi
+      IntegrationType: AWS_PROXY
+      IntegrationMethod: POST
+      PayloadFormatVersion: '2.0'
+      TargetUri: !Sub 'arn:aws:apigatewayv2:${AWS::Region}:lambda:path/2015-03-31/functions/${RAGLambda.Arn}/invocations'
+
+  RAGRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RAGApi
+      RouteKey: 'POST /chat'
+      Target: !Sub 'integrations/${RAGIntegration}'
+
+  RAGStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref RAGApi
+      StageName: prod
+      AutoDeploy: true
+
+  RAGPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref RAGLambda
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${RAGApi}/*/*'
+
+Outputs:
+  ChatUrl:
+    Value: !Sub 'https://${RAGApi}.execute-api.${AWS::Region}.amazonaws.com/prod/chat'
+    Export:
+      Name: RAGChatUrl
+
+  LambdaArn:
+    Value: !GetAtt RAGLambda.Arn
+    Export:
+      Name: RAGLambdaArn

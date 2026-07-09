@@ -2,25 +2,22 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Pillar 1 RAG Bot - Lambda + API Gateway Deployment'
 
 Parameters:
-  LambdaZipUrl:
+  VpcId:
     Type: String
-    Default: 'https://github.com/jdamienscott/pillar-1-rag-bot/releases/download/v1.0/lambda_deployment.zip'
-    Description: 'S3 URL to Lambda deployment package'
+    Default: vpc-072d37f94fc40fb37
+    Description: 'VPC ID for Lambda'
+  
+  SubnetId1:
+    Type: String
+    Default: subnet-09bbe148c555a042d
+    Description: 'First subnet for Lambda'
+  
+  SubnetId2:
+    Type: String
+    Default: subnet-025e0c529cdd9acd7
+    Description: 'Second subnet for Lambda'
 
 Resources:
-  # S3 bucket for Lambda code
-  LambdaCodeBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub 'pillar-1-rag-lambda-code-${AWS::AccountId}'
-      VersioningConfiguration:
-        Status: Enabled
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-
   # IAM Role for Lambda
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -80,9 +77,24 @@ Resources:
           ]
         }
 
+  # Security Group for Lambda
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for RAG Lambda
+      GroupName: pillar-1-lambda-sg
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS to Bedrock
+
   # Lambda Function
   RAGBotFunction:
     Type: AWS::Lambda::Function
+    DependsOn: LambdaExecutionRole
     Properties:
       FunctionName: pillar-1-rag-bot
       Runtime: python3.12
@@ -91,32 +103,18 @@ Resources:
       Timeout: 30
       MemorySize: 512
       Code:
-        S3Bucket: !Ref LambdaCodeBucket
+        S3Bucket: pillar-1-rag-lambda-code-608645727500
         S3Key: lambda_deployment.zip
       Environment:
         Variables:
           KB_SECRET_NAME: !Ref KBSecret
-          BEDROCK_REGION: !Sub '${AWS::Region}'
+          BEDROCK_REGION: !Ref AWS::Region
       VpcConfig:
         SecurityGroupIds:
           - !Ref LambdaSecurityGroup
         SubnetIds:
-          - !ImportValue BaselinePrivateSubnet1
-          - !ImportValue BaselinePrivateSubnet2
-
-  # Security Group for Lambda
-  LambdaSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for RAG Lambda
-      GroupName: pillar-1-lambda-sg
-      VpcId: !ImportValue BaselineVPC
-      SecurityGroupEgress:
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
-          Description: HTTPS to Bedrock
+          - !Ref SubnetId1
+          - !Ref SubnetId2
 
   # API Gateway
   RAGApi:
