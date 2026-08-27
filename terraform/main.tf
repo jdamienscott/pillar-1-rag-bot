@@ -19,9 +19,9 @@ provider "aws" {
 data "terraform_remote_state" "baseline" {
   backend = "s3"
   config = {
-    bucket  = "ai-security-tfstate-608645727500"
-    key     = "baseline/terraform.tfstate"
-    region  = "us-east-1"
+    bucket = "ai-security-tfstate-608645727500"
+    key    = "baseline/terraform.tfstate"
+    region = "us-east-1"
   }
 }
 
@@ -103,14 +103,16 @@ resource "aws_iam_role_policy" "lambda_secrets" {
 
 # VPC configuration for Lambda
 resource "aws_lambda_function" "rag_bot" {
-  filename         = "lambda_deployment.zip"
-  function_name    = "pillar-1-rag-bot"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = "lambda_handler.handler"
-  runtime          = "python3.12"
-  timeout          = 30
-  memory_size      = 512
-  source_code_hash = filebase64sha256("lambda_deployment.zip")
+  filename      = "lambda_deployment.zip"
+  function_name = "pillar-1-rag-bot"
+  role          = aws_iam_role.lambda_role.arn
+  handler       = "lambda_handler.handler"
+  runtime       = "python3.12"
+  timeout       = 30
+  memory_size   = 512
+  # try() lets `terraform validate` pass when the build artifact hasn't been
+  # generated yet (it's gitignored; run ./deploy.sh to produce it)
+  source_code_hash = try(filebase64sha256("lambda_deployment.zip"), null)
 
   vpc_config {
     subnet_ids         = data.terraform_remote_state.baseline.outputs.private_subnet_ids
@@ -182,11 +184,11 @@ resource "aws_apigatewayv2_api" "rag_api" {
 
 # API Gateway Integration
 resource "aws_apigatewayv2_integration" "lambda_integration" {
-  api_id           = aws_apigatewayv2_api.rag_api.id
-  integration_type = "AWS_PROXY"
-  integration_method = "POST"
+  api_id                 = aws_apigatewayv2_api.rag_api.id
+  integration_type       = "AWS_PROXY"
+  integration_method     = "POST"
   payload_format_version = "2.0"
-  target           = aws_lambda_function.rag_bot.arn
+  integration_uri        = aws_lambda_function.rag_bot.invoke_arn
 }
 
 # API Gateway Route

@@ -3,10 +3,8 @@ Lambda handler for Pillar 1 RAG Bot
 Wraps the FastAPI app for AWS Lambda + API Gateway
 """
 import json
-import os
 import sys
 import base64
-from urllib.parse import parse_qs
 
 # Add app directory to path
 sys.path.insert(0, '/var/task/app')
@@ -25,8 +23,6 @@ def handler(event, context):
     """
     try:
         # Parse request
-        http_method = event.get('requestContext', {}).get('http', {}).get('method', 'POST')
-        path = event.get('rawPath', '')
         body = event.get('body', '')
 
         # Decode body if base64 encoded

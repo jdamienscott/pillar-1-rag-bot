@@ -15,14 +15,22 @@ curl -X POST https://rgayri47z5.execute-api.us-east-1.amazonaws.com/prod/chat \
   -d '{"message": "What is ProcessNexus?"}'
 ```
 
+> ⚠️ **Note:** These demo endpoints are unauthenticated and may be offline or
+> rate-limited outside of active demonstrations. The vulnerable endpoint is
+> intentionally exploitable — it exists for the attack walkthroughs below.
+> To run the demo yourself, deploy your own copy via [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ---
 
 ## What's Inside
 
 ### Core Files
 - `hardened_lambda.py` — Production-ready handler with 5-layer defense
-- `vulnerable_lambda.py` — Deliberately insecure baseline (for learning)
+- `app/main.py` — Deliberately insecure FastAPI baseline (for learning)
+- `app/main_guarded.py` — Baseline wrapped with NeMo Guardrails (`rails/`)
 - `lambda_handler.py` — Original Converse API handler
+- `standalone_lambda.py` — Self-contained handler for manual console deployment
+- `attacks/` — The 12 attack payloads across 4 categories
 
 ### Documentation
 - **[HARDENING_AND_RESULTS.md](HARDENING_AND_RESULTS.md)** — Complete before/after analysis (START HERE)
@@ -125,7 +133,7 @@ Start with [HARDENING_AND_RESULTS.md](HARDENING_AND_RESULTS.md) for:
 - Code examples for each defense layer
 
 ### Step 2: Review the Code
-- `vulnerable_lambda.py` — See what NOT to do
+- `app/main.py` — See what NOT to do
 - `hardened_lambda.py` — See the fixes implemented
 
 ### Step 3: Test Both Versions
@@ -178,12 +186,17 @@ pillar-1-rag-bot/
 ├── README.md (this file)
 ├── HARDENING_AND_RESULTS.md ← START HERE for full analysis
 ├── INCIDENT_REPORT.md ← For executive briefings
-├── DEPLOYMENT.md ← How to deploy
+├── DEPLOYMENT.md ← How to deploy (Terraform / CLI)
+├── DEPLOY-AWS-CONSOLE.md ← How to deploy (AWS Console, no local tools)
 ├── hardened_lambda.py ← Production code
-├── vulnerable_lambda.py ← Learning example (what NOT to do)
 ├── lambda_handler.py ← Original implementation
+├── standalone_lambda.py ← Self-contained console-deploy handler
+├── app/ ← Vulnerable FastAPI baseline + guarded variant + KB
+├── attacks/ ← 12 attack payloads (4 categories)
+├── rails/ ← NeMo Guardrails config
 ├── terraform/ ← Infrastructure as code
-└── cloudformation/ ← Alternative deployment method
+├── cloudformation-template.yaml ← Alternative deployment method
+└── cloudformation-simple.yaml ← Simplified CloudFormation variant
 ```
 
 ---

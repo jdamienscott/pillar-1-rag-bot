@@ -67,7 +67,7 @@ Resources:
     Properties:
       Name: pillar-1-kb-rag
       Description: 'Knowledge base for RAG bot'
-      SecretString: !Sub |
+      SecretString: |
         {
           "kb": [
             "ProcessNexus is a workflow automation platform.",
@@ -94,7 +94,6 @@ Resources:
   # Lambda Function
   RAGBotFunction:
     Type: AWS::Lambda::Function
-    DependsOn: LambdaExecutionRole
     Properties:
       FunctionName: pillar-1-rag-bot
       Runtime: python3.12
@@ -139,7 +138,7 @@ Resources:
       IntegrationType: AWS_PROXY
       IntegrationMethod: POST
       PayloadFormatVersion: '2.0'
-      TargetUri: !Sub 'arn:aws:apigatewayv2:${AWS::Region}:lambda:path/2015-03-31/functions/${RAGBotFunction.Arn}/invocations'
+      IntegrationUri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${RAGBotFunction.Arn}/invocations'
 
   # API Route
   ChatRoute:
