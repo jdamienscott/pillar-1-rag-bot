@@ -2,7 +2,11 @@
 Hardened Lambda handler for Pillar 1 RAG Bot
 Implements security mitigations against prompt injection, exfiltration, hallucination, and poisoning
 """
-import json, boto3, os, re
+import json
+import os
+import re
+
+import boto3
 from typing import Tuple
 
 bedrock = boto3.client('bedrock-runtime', region_name='us-east-1')
@@ -40,7 +44,7 @@ def get_knowledge_base():
         r = secrets.get_secret_value(SecretId=secret_name)
         KB_CACHE = json.loads(r['SecretString']).get('kb', [])
         return KB_CACHE
-    except:
+    except Exception:
         return []
 
 def sanitize_input(text: str) -> Tuple[str, bool]:
@@ -115,7 +119,7 @@ def handler(event, context) -> dict:
         
         try:
             payload = json.loads(body)
-        except:
+        except Exception:
             return {
                 'statusCode': 400,
                 'body': json.dumps({'error': 'Invalid JSON'}),
