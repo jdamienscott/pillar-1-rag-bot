@@ -101,7 +101,7 @@ Resources:
       IntegrationType: AWS_PROXY
       IntegrationMethod: POST
       PayloadFormatVersion: '2.0'
-      TargetUri: !Sub 'arn:aws:apigatewayv2:${AWS::Region}:lambda:path/2015-03-31/functions/${RAGLambda.Arn}/invocations'
+      IntegrationUri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${RAGLambda.Arn}/invocations'
 
   RAGRoute:
     Type: AWS::ApiGatewayV2::Route
